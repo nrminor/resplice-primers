@@ -72,11 +72,11 @@ def dedup_primers(partitioned_bed: List[pl.DataFrame]) -> List[pl.DataFrame]:
         `dedup_primers()` primers finds repeated instances of the same primer
         name and adds a unique identifier for each. This ensures that joins
         downstream are one-to-many as opposed to many-to-many.
-    
+
     Args:
         `partitioned_bed: List[pl.DataFrame]`: A List of Polars DataFrames that
         have been partitioned by amplicon.
-    
+
     Returns:
         `List[pl.DataFrame]`: A partitioned list of Polars dataframes with no
         repeat primer names.
@@ -103,6 +103,7 @@ def dedup_primers(partitioned_bed: List[pl.DataFrame]) -> List[pl.DataFrame]:
                             "Ref",
                             "Start Position",
                             "Stop Position",
+                            "ORIG_NAME",
                             "NAME",
                             "INDEX",
                             "SENSE",
@@ -129,11 +130,11 @@ def resolve_primer_names(
         `resolve_primer_names()` names each possible pairing of primers in
         amplicons where singletons, forward or reverse, have been added to
         increase template coverage.
-    
+
     Args:
         `to_combine: List[str]`: A list of forward primers to resolve.
         `combine_to: List[str]`: A list of reverse primers to resolve.
-    
+
     Returns:
         `Tuple[List[str], List[str]]`: A tuple containing two lists, the first
         being a list of primer names to use with joining, and the second being
@@ -173,15 +174,11 @@ def resplice_primers(dedup_partitioned: List[pl.DataFrame]) -> List[pl.DataFrame
         `resplice_primers()` determines whether spike-ins are forward or reverse
         primers (or both) and uses that information to handle resplicing
         possible combinations.
-        
-        
-        handles resolving primer names and removes
-        any spikeins with possible pairings that could not be determined.
-    
+
     Args:
-        `dedup_partitioned: List[pl.DataFrame]`: A Polars dataframe with no 
+        `dedup_partitioned: List[pl.DataFrame]`: A Polars dataframe with no
         duplicate primer names.
-    
+
     Returns:
         `List[pl.DataFrame]`: A list of Polars DataFrames where each dataframe
         is represents all possible pairings of primers within a single amplicon.
@@ -220,6 +217,7 @@ def resplice_primers(dedup_partitioned: List[pl.DataFrame]) -> List[pl.DataFrame
                     "Ref",
                     "Start Position",
                     "Stop Position",
+                    "ORIG_NAME",
                     "NAME",
                     "INDEX",
                     "SENSE",
@@ -228,6 +226,8 @@ def resplice_primers(dedup_partitioned: List[pl.DataFrame]) -> List[pl.DataFrame
                 )
             )
             mutated_frames.append(new_df)
+        else:
+            mutated_frames.append(df)
 
     return mutated_frames
 
@@ -236,11 +236,11 @@ def finalize_primer_pairings(mutated_frames: List[pl.DataFrame]) -> pl.DataFrame
     """
         `finalize_primer_pairings()` removes any spikeins with possible pairings
         that could not be determined.
-    
+
     Args:
         `mutated_frames: List[pl.DataFrame]`: A list of Polars DataFrames, each
-        representing a respliced amplicon. 
-    
+        representing a respliced amplicon.
+
     Returns:
         `pl.DataFrame`: A concatenated Polars dataframe that will be written
         out to a new BED file.
@@ -288,6 +288,7 @@ def main() -> None:
                 "Gene",
             ],
         )
+        .with_columns(pl.col("NAME").alias("ORIG_NAME"))
         .with_columns(
             pl.col("NAME")
             .str.replace_all("_LEFT", "")
@@ -297,6 +298,17 @@ def main() -> None:
             .str.replace_all("-4", "")
             .alias("Amplicon")
         )
+                        .select(
+                            "Ref",
+                            "Start Position",
+                            "Stop Position",
+                            "ORIG_NAME",
+                            "NAME",
+                            "INDEX",
+                            "SENSE",
+                            "Gene",
+                            "Amplicon",
+                        )
         .with_columns(pl.col("NAME").is_duplicated().alias("duped"))
         .partition_by("Amplicon")
     )
