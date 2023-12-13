@@ -107,7 +107,6 @@ def dedup_primers(partitioned_bed: List[pl.DataFrame]) -> List[pl.DataFrame]:
                             "NAME",
                             "INDEX",
                             "SENSE",
-                            "Gene",
                             "Amplicon",
                             "duped",
                         )
@@ -221,7 +220,6 @@ def resplice_primers(dedup_partitioned: List[pl.DataFrame]) -> List[pl.DataFrame
                     "NAME",
                     "INDEX",
                     "SENSE",
-                    "Gene",
                     "Amplicon",
                 )
             )
@@ -285,7 +283,6 @@ def main() -> None:
                 "NAME",
                 "INDEX",
                 "SENSE",
-                "Gene",
             ],
         )
         .with_columns(pl.col("NAME").alias("ORIG_NAME"))
@@ -306,7 +303,6 @@ def main() -> None:
                             "NAME",
                             "INDEX",
                             "SENSE",
-                            "Gene",
                             "Amplicon",
                         )
         .with_columns(pl.col("NAME").is_duplicated().alias("duped"))
